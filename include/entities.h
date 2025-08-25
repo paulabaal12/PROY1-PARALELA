@@ -17,9 +17,8 @@ typedef struct {
 // Crea un arreglo de N notas con posiciones, velocidades y colores aleatorios
 void notes_init(Note *notes, int N, int width, int height, unsigned int seed);
 
-// Actualiza una nota con dt (segundos) y hace rebotar con físicas simples contra los bordes
-// Devuelve true si hubo rebote (para disparar sonido)
-bool note_update_bounce(Note *n, float dt, int width, int height);
+// Actualiza la posición y color de la nota siguiendo trayectorias creativas (patrones geométricos)
+void note_update_creative(Note *n, int i, int N, float t_seconds, int width, int height);
 
 // Renderiza la nota (cabeza, plica y banderas según el tipo)
 void note_render(SDL_Renderer *ren, const Note *n);

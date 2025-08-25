@@ -10,26 +10,31 @@
 #define WINDOW_W 800
 #define WINDOW_H 600
 
-static SDL_Color hsv_to_rgb(float h, float s, float v){
-    float c = v*s;
-    float x = c*(1 - fabsf(fmodf(h/60.0f, 2.0f) - 1));
-    float m = v - c;
-    float r=0,g=0,b=0;
-    if (h<60){r=c;g=x;b=0;} else if (h<120){r=x;g=c;b=0;} else if (h<180){r=0;g=c;b=x;} else if(h<240){r=0;g=x;b=c;} else if(h<300){r=x;g=0;b=c;} else {r=c;g=0;b=x;}
-    SDL_Color col = { (Uint8)((r+m)*255), (Uint8)((g+m)*255), (Uint8)((b+m)*255), 255};
-    return col;
-}
-
-static void draw_vertical_gradient(SDL_Renderer *ren, int w, int h, float t){
-    // gradiente animado en HSV (hue desplazado con el tiempo)
-    for (int y=0; y<h; ++y){
+static void pastel_gradient(SDL_Renderer *ren, int w, int h, float t) {
+    (void)t;
+    SDL_Color stops[5] = {
+        {180, 220, 255, 255}, // celeste
+        {220, 190, 255, 255}, // lila
+        {255, 210, 230, 255}, // rosa
+        {255, 245, 200, 255}, // amarillo
+        {200, 255, 220, 255}  // menta
+    };
+    int nstops = 5;
+    for (int y=0; y<h; ++y) {
         float p = (float)y/(float)(h-1);
-        float hue = fmodf((t*40.0f + p*180.0f), 360.0f);
-        SDL_Color c = hsv_to_rgb(hue, 0.6f, 0.25f + 0.65f*p);
-        SDL_SetRenderDrawColor(ren, c.r, c.g, c.b, 255);
+        float pos = p * (nstops-1);
+        int idx = (int)pos;
+        float frac = pos - idx;
+        SDL_Color c1 = stops[idx];
+        SDL_Color c2 = stops[(idx+1<nstops)?idx+1:idx];
+        Uint8 r = (Uint8)((1-frac)*c1.r + frac*c2.r);
+        Uint8 g = (Uint8)((1-frac)*c1.g + frac*c2.g);
+        Uint8 b = (Uint8)((1-frac)*c1.b + frac*c2.b);
+        SDL_SetRenderDrawColor(ren, r, g, b, 255);
         SDL_RenderDrawLine(ren, 0, y, w-1, y);
     }
 }
+
 
 int main(int argc, char **argv){
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0){
@@ -88,10 +93,10 @@ int main(int argc, char **argv){
 
 
         for (int i=0; i<N; ++i) {
-        note_update_bounce(&notes[i], dt, WINDOW_W, WINDOW_H);
+            note_update_creative(&notes[i], i, N, t_seconds, WINDOW_W, WINDOW_H);
         }
         // Render
-        draw_vertical_gradient(ren, WINDOW_W, WINDOW_H, t_seconds);
+    pastel_gradient(ren, WINDOW_W, WINDOW_H, t_seconds);
         for (int i=0;i<N;++i) note_render(ren, &notes[i]);
 
         // FPS
