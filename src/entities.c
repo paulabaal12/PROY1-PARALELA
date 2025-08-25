@@ -37,7 +37,7 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
     int mode = ((int)(t_seconds/5.0f))%2;
     float t_phase = fmodf(t_seconds, 5.0f)/5.0f; // 0..1
     float cx = w/2.0f;
-    float cy = h*0.60f;
+    float cy = h/2.0f;
     float interp = 0.5f - 0.5f*cosf(t_phase*3.1415926f); // transición suave
 
     // Ajuste de cantidad de notas en figura central
