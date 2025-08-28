@@ -68,14 +68,20 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
         float r = R * (0.7f + 0.3f * sinf(petals * theta + t_seconds));
         fx = cx + r * cosf(theta);
         fy = cy + r * sinf(theta);
+    } else if (fig == 2) {
+        // Lemniscata
+        float a = (h < w ? h : w) * 0.25f;
+        float denom = 1.0f + sinf(theta) * sinf(theta);
+        fx = cx + (a * cosf(theta)) / denom;
+        fy = cy + (a * sinf(theta) * cosf(theta)) / denom;
     } else {
         // Estrella
-        float R = (h < w ? h : w) * 0.33f;
-        int spikes = 5 + (int)(2.0f * (0.5f + 0.5f * sinf(t_seconds*0.6f)));
-        float star = 0.65f + 0.35f * cosf(spikes * theta + t_seconds*1.2f);
-        float r = R * star;
-        fx = cx + r * cosf(theta);
-        fy = cy + r * sinf(theta);
+        float R = (h < w ? h : w) * 0.45f;
+        float golden = 2.399963f; // ángulo áureo en radianes
+        float r = R * sqrtf((float)i / (float)N);
+        float ang = i * golden + t_seconds*0.2f;
+        fx = cx + r * cosf(ang);
+        fy = cy + r * sinf(ang);
     }
 
     // Posición figura siguiente (para la transición de dispersión a la siguiente figura)
