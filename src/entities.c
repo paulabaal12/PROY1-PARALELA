@@ -34,14 +34,8 @@ void notes_init(Note *notes, int N, int w, int h, unsigned int seed) {
 // t_seconds: tiempo global, w/h: tamaño ventana, i: índice de la nota, N: total
 void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) {
 
-    // Fases: cuadrícula -> figura -> dispersión -> cuadrícula siguiente
-    int n_figs = 3;
-    int fig = ((int)(t_seconds / 7.0f)) % n_figs;
-    int next_fig = (fig + 1) % n_figs;
-    float t_phase = fmodf(t_seconds, 7.0f) / 7.0f; // 0..1
     float cx = w / 2.0f;
     float cy = h / 2.0f;
-
     // Posición cuadrícula (pantalla llena)
     int cols = (int)sqrtf((float)N * w / h);
     int rows = (N + cols - 1) / cols;
@@ -52,83 +46,132 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
     float grid_x = xgap * (col+1);
     float grid_y = ygap * (row+1);
 
-    // Posición figura actual
-    float theta = 2 * 3.1415926f * (float)i / (float)N;
-    float fx = grid_x, fy = grid_y;
-    if (fig == 0) {
-        // Corazón
+    if (t_seconds < 4.0f) {
+        // Solo cuadrícula los primeros 2.5 segundos
+        float t_grid = t_seconds / 4.0f;
+        n->x = grid_x;
+        n->y = grid_y;
+        n->radius = 10.0f + 2.0f * sinf(t_seconds + i*0.5f);
+    } else if (t_seconds < 6.5f) {
+        // Transición cuadrícula -> dispersión -> puntos aleatorios -> primera figura creativa
+        float t_local = t_seconds - 4.0f;
+        float theta = 2 * 3.1415926f * (float)i / (float)N;
+        // Corazón como primera figura
         float R = (h < w ? h : w) * 0.28f;
         float t = theta;
-        fx = cx + R * 16 * powf(sinf(t), 3) / 17.0f;
-        fy = cy - R * (13 * cosf(t) - 5 * cosf(2*t) - 2 * cosf(3*t) - cosf(4*t)) / 17.0f;
-    } else if (fig == 1) {
-        // Flor
-        float R = (h < w ? h : w) * 0.36f;
-        float petals = 6.0f + 2.0f * sinf(t_seconds*0.5f);
-        float r = R * (0.7f + 0.3f * sinf(petals * theta + t_seconds));
-        fx = cx + r * cosf(theta);
-        fy = cy + r * sinf(theta);
-    } else if (fig == 2) {
-        // Lemniscata
-        float a = (h < w ? h : w) * 0.25f;
-        float denom = 1.0f + sinf(theta) * sinf(theta);
-        fx = cx + (a * cosf(theta)) / denom;
-        fy = cy + (a * sinf(theta) * cosf(theta)) / denom;
+        float fx = cx + R * 16 * powf(sinf(t), 3) / 17.0f;
+        float fy = cy - R * (13 * cosf(t) - 5 * cosf(2*t) - 2 * cosf(3*t) - cosf(4*t)) / 17.0f;
+        float disp_r = (h < w ? h : w) * (0.45f + 0.25f * sinf(t_seconds + i));
+        float disp_x = cx + disp_r * cosf(theta + sinf(i));
+        float disp_y = cy + disp_r * sinf(theta + cosf(i));
+        // Puntos aleatorios (fijos por nota)
+        float rand_x = w * (0.1f + 0.8f * ((float)((i*73)%N)/(float)N));
+        float rand_y = h * (0.1f + 0.8f * ((float)((i*97)%N)/(float)N));
+        float t_phase = t_local / 2.5f; // 0..1
+        float interp;
+        if (t_phase < 0.33f) {
+            // cuadrícula -> dispersión
+            interp = 0.5f - 0.5f * cosf((t_phase/0.33f) * 3.1415926f);
+            n->x = (1.0f - interp) * grid_x + interp * disp_x;
+            n->y = (1.0f - interp) * grid_y + interp * disp_y;
+        } else if (t_phase < 0.66f) {
+            // dispersión -> puntos aleatorios
+            float dphase = (t_phase-0.33f)/0.33f;
+            interp = 0.5f - 0.5f * cosf(dphase * 3.1415926f);
+            n->x = (1.0f - interp) * disp_x + interp * rand_x;
+            n->y = (1.0f - interp) * disp_y + interp * rand_y;
+        } else {
+            // puntos aleatorios -> corazón
+            float dphase = (t_phase-0.66f)/0.34f;
+            interp = 0.5f - 0.5f * cosf(dphase * 3.1415926f);
+            n->x = (1.0f - interp) * rand_x + interp * fx;
+            n->y = (1.0f - interp) * rand_y + interp * fy;
+        }
+        n->radius = 9.0f + 3.0f * sinf(t_seconds + i*0.5f);
     } else {
-        // Estrella
-        float R = (h < w ? h : w) * 0.45f;
-        float golden = 2.399963f; // ángulo áureo en radianes
-        float r = R * sqrtf((float)i / (float)N);
-        float ang = i * golden + t_seconds*0.2f;
-        fx = cx + r * cosf(ang);
-        fy = cy + r * sinf(ang);
-    }
+        // Transición: figura actual -> dispersión -> puntos aleatorios -> nueva figura
+        int n_figs = 3;
+        int fig = ((int)((t_seconds-6.5f) / 7.0f)) % n_figs;
+        int next_fig = (fig + 1) % n_figs;
+        float t_phase = fmodf((t_seconds-6.5f), 7.0f) / 7.0f; // 0..1
 
-    // Posición figura siguiente (para la transición de dispersión a la siguiente figura)
-    float fx_next = grid_x, fy_next = grid_y;
-    if (next_fig == 0) {
-        float R = (h < w ? h : w) * 0.28f;
-        float t = theta;
-        fx_next = cx + R * 16 * powf(sinf(t), 3) / 17.0f;
-        fy_next = cy - R * (13 * cosf(t) - 5 * cosf(2*t) - 2 * cosf(3*t) - cosf(4*t)) / 17.0f;
-    } else if (next_fig == 1) {
-        float R = (h < w ? h : w) * 0.36f;
-        float petals = 6.0f + 2.0f * sinf((t_seconds+7.0f)*0.5f);
-        float r = R * (0.7f + 0.3f * sinf(petals * theta + t_seconds+7.0f));
-        fx_next = cx + r * cosf(theta);
-        fy_next = cy + r * sinf(theta);
-    } else {
-        float R = (h < w ? h : w) * 0.33f;
-        int spikes = 5 + (int)(2.0f * (0.5f + 0.5f * sinf((t_seconds+7.0f)*0.6f)));
-        float star = 0.65f + 0.35f * cosf(spikes * theta + (t_seconds+7.0f)*1.2f);
-        float r = R * star;
-        fx_next = cx + r * cosf(theta);
-        fy_next = cy + r * sinf(theta);
-    }
+        // Posición figura actual
+        float theta = 2 * 3.1415926f * (float)i / (float)N;
+        float fx = 0, fy = 0, fx_next = 0, fy_next = 0;
+        if (fig == 0) {
+            float R = (h < w ? h : w) * 0.28f;
+            float t = theta;
+            fx = cx + R * 16 * powf(sinf(t), 3) / 17.0f;
+            fy = cy - R * (13 * cosf(t) - 5 * cosf(2*t) - 2 * cosf(3*t) - cosf(4*t)) / 17.0f;
+        } else if (fig == 1) {
+            float R = (h < w ? h : w) * 0.36f;
+            float petals = 6.0f + 2.0f * sinf(t_seconds*0.5f);
+            float r = R * (0.7f + 0.3f * sinf(petals * theta + t_seconds));
+            fx = cx + r * cosf(theta);
+            fy = cy + r * sinf(theta);
+        } else if (fig == 2) {
+            // Animar la formación de la lemniscata
+            float a = (h < w ? h : w) * 0.25f;
+            float t_anim = 1.0f;
+            if (t_phase < 0.33f) {
+                t_anim = t_phase / 0.33f; 
+            }
+            float theta_anim = theta * t_anim;
+            float denom = 1.0f + sinf(theta_anim) * sinf(theta_anim);
+            fx = cx + (a * cosf(theta_anim)) / denom;
+            fy = cy + (a * sinf(theta_anim) * cosf(theta_anim)) / denom;
+        }
+        // Siguiente figura
+        if (next_fig == 0) {
+            float R = (h < w ? h : w) * 0.28f;
+            float t = theta;
+            fx_next = cx + R * 16 * powf(sinf(t), 3) / 17.0f;
+            fy_next = cy - R * (13 * cosf(t) - 5 * cosf(2*t) - 2 * cosf(3*t) - cosf(4*t)) / 17.0f;
+        } else if (next_fig == 1) {
+            float R = (h < w ? h : w) * 0.36f;
+            float petals = 6.0f + 2.0f * sinf((t_seconds+7.0f)*0.5f);
+            float r = R * (0.7f + 0.3f * sinf(petals * theta + t_seconds+7.0f));
+            fx_next = cx + r * cosf(theta);
+            fy_next = cy + r * sinf(theta);
+        } else {
+            float R = (h < w ? h : w) * 0.33f;
+            int spikes = 5 + (int)(2.0f * (0.5f + 0.5f * sinf((t_seconds+7.0f)*0.6f)));
+            float star = 0.65f + 0.35f * cosf(spikes * theta + (t_seconds+7.0f)*1.2f);
+            float r = R * star;
+            fx_next = cx + r * cosf(theta);
+            fy_next = cy + r * sinf(theta);
+        }
+        // Dispersión
+        float disp_r = (h < w ? h : w) * (0.45f + 0.25f * sinf(t_seconds + i));
+        float disp_x = cx + disp_r * cosf(theta + sinf(i));
+        float disp_y = cy + disp_r * sinf(theta + cosf(i));
+        // Puntos aleatorios (fijos por nota)
+        float rand_x = w * (0.1f + 0.8f * ((float)((i*73)%N)/(float)N));
+        float rand_y = h * (0.1f + 0.8f * ((float)((i*97)%N)/(float)N));
 
-    // Posición de dispersión (explosión desde el centro)
-    float disp_r = (h < w ? h : w) * (0.45f + 0.25f * sinf(t_seconds + i));
-    float disp_x = cx + disp_r * cosf(theta + sinf(i));
-    float disp_y = cy + disp_r * sinf(theta + cosf(i));
-
-    // Fases: 0-0.6 transición cuadrícula->figura, 0.6-0.8 dispersión, 0.8-1.0 dispersión->siguiente figura
-    float interp;
-    if (t_phase < 0.6f) {
-        interp = 0.5f - 0.5f * cosf((t_phase/0.6f) * 3.1415926f);
-        n->x = (1.0f - interp) * grid_x + interp * fx;
-        n->y = (1.0f - interp) * grid_y + interp * fy;
-    } else if (t_phase < 0.8f) {
-        float dphase = (t_phase-0.6f)/0.2f;
-        interp = 0.5f - 0.5f * cosf(dphase * 3.1415926f);
-        n->x = (1.0f - interp) * fx + interp * disp_x;
-        n->y = (1.0f - interp) * fy + interp * disp_y;
-    } else {
-        float dphase = (t_phase-0.8f)/0.2f;
-        interp = 0.5f - 0.5f * cosf(dphase * 3.1415926f);
-        n->x = (1.0f - interp) * disp_x + interp * fx_next;
-        n->y = (1.0f - interp) * disp_y + interp * fy_next;
+        // Fases: 0-0.33 figura actual, 0.33-0.55 dispersión, 0.55-0.77 puntos aleatorios, 0.77-1.0 puntos aleatorios->nueva figura
+        float interp;
+        if (t_phase < 0.33f) {
+            n->x = fx;
+            n->y = fy;
+        } else if (t_phase < 0.55f) {
+            float dphase = (t_phase-0.33f)/0.22f;
+            interp = 0.5f - 0.5f * cosf(dphase * 3.1415926f);
+            n->x = (1.0f - interp) * fx + interp * disp_x;
+            n->y = (1.0f - interp) * fy + interp * disp_y;
+        } else if (t_phase < 0.77f) {
+            float dphase = (t_phase-0.55f)/0.22f;
+            interp = 0.5f - 0.5f * cosf(dphase * 3.1415926f);
+            n->x = (1.0f - interp) * disp_x + interp * rand_x;
+            n->y = (1.0f - interp) * disp_y + interp * rand_y;
+        } else {
+            float dphase = (t_phase-0.77f)/0.23f;
+            interp = 0.5f - 0.5f * cosf(dphase * 3.1415926f);
+            n->x = (1.0f - interp) * rand_x + interp * fx_next;
+            n->y = (1.0f - interp) * rand_y + interp * fy_next;
+        }
+        n->radius = 9.0f + 3.0f * sinf(t_seconds + i*0.5f);
     }
-    n->radius = 9.0f + 3.0f * sinf(t_seconds + i*0.5f);
 
     // Color arcoíris animado
     float hue = fmodf((t_seconds * 30.0f + i * 360.0f / N), 360.0f);
