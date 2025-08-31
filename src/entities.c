@@ -28,9 +28,11 @@ void figure_lemniscate(float *x, float *y, float cx, float cy, float theta, floa
 
 // Espiral
 void figure_spiral(float *x, float *y, float cx, float cy, float theta, float scale, float t_seconds) {
-    float R = scale;
-    float r = R * (float)theta / (2.0f * 3.1415926f);
-    float angle = theta + t_seconds * 0.5f;
+    // Espiral que inicia en el centro y se expande hacia afuera
+    float vueltas = 2.5f + 1.5f * sinf(t_seconds * 0.2f); // número de vueltas animado
+    float t_norm = theta / (2.0f * 3.1415926f); // 0..1
+    float r = scale * t_norm * vueltas;
+    float angle = theta + t_seconds * 0.7f;
     *x = cx + r * cosf(angle);
     *y = cy + r * sinf(angle);
 }

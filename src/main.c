@@ -1,6 +1,5 @@
 #include <omp.h>
-// Cambia este valor a 0 para medir la versión secuencial, 1 para la paralela
-#define USE_PARALLEL 1
+#define USE_PARALLEL 0
 #include <omp.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -81,6 +80,12 @@ int main(int argc, char **argv){
     char fps_text[64];
     SDL_Color white = {240,240,240,255};
 
+   
+    #define SPEEDUP_HISTORY 64
+    double par_times[SPEEDUP_HISTORY] = {0};
+    double seq_times[SPEEDUP_HISTORY] = {0};
+    int par_index = 0, seq_index = 0;
+
     int running = 1;
     while (running){
         SDL_Event e;
@@ -111,7 +116,16 @@ int main(int argc, char **argv){
             }
         }
         double t1 = omp_get_wtime();
-        printf("[Speedup] Tiempo %s: %f segundos\n", USE_PARALLEL ? "paralelo" : "secuencial", t1-t0);
+        double elapsed = t1-t0;
+        printf("[Speedup] Tiempo %s: %f segundos\n", USE_PARALLEL ? "paralelo" : "secuencial", elapsed);
+        // Guardar solo los tiempos paralelos recientes
+        if (USE_PARALLEL) {
+            par_times[par_index % SPEEDUP_HISTORY] = elapsed;
+            par_index++;
+        } else {
+            seq_times[seq_index % SPEEDUP_HISTORY] = elapsed;
+            seq_index++;
+        }
         // Render
     pastel_gradient(ren, WINDOW_W, WINDOW_H, t_seconds);
         for (int i=0;i<N;++i) note_render(ren, &notes[i]);
@@ -130,6 +144,30 @@ int main(int argc, char **argv){
 
         SDL_RenderPresent(ren);
     }
+    //Estadisticas de tiempos
+    printf("\n=== Estadísticas Finales ===\n");
+    int npar = par_index < SPEEDUP_HISTORY ? par_index : SPEEDUP_HISTORY;
+    int nseq = seq_index < SPEEDUP_HISTORY ? seq_index : SPEEDUP_HISTORY;
+    double sum_par = 0, sum_seq = 0;
+    for (int i = 0; i < npar; ++i) sum_par += par_times[i];
+    for (int i = 0; i < nseq; ++i) sum_seq += seq_times[i];
+    double avg_par = npar ? sum_par / npar : 0.0;
+    double avg_seq = nseq ? sum_seq / nseq : 0.0;
+    double speedup = (avg_par > 0 && avg_seq > 0) ? avg_seq / avg_par : 0.0;
+    double efficiency = (speedup > 0) ? speedup / omp_get_max_threads() * 100.0 : 0.0;
+    printf("Tiempo promedio secuencial: %.6f segundos\n", avg_seq);
+    printf("Tiempo promedio paralelo: %.6f segundos\n", avg_par);
+    printf("Speedup: %.2fx\n", speedup);
+    printf("Eficiencia: %.1f%%\n", efficiency);
+    printf("Mediciones paralelas: %d\n", npar);
+    printf("Mediciones secuenciales: %d\n", nseq);
+    if (nseq == 0) {
+        printf("\nNota: No hay tiempos secuenciales porque solo ejecutaste el modo paralelo. Cambia USE_PARALLEL a 0 para medir el modo secuencial.\n");
+    }
+    if (nseq == 1) {
+        printf("\nNota: No hay tiempos paralelos porque solo ejecutaste el modo secuencial. Cambia USE_PARALLEL a 1 para medir el modo paralelo.\n");
+    }
+    fflush(stdout);
 
     if (font) TTF_CloseFont(font);
     SDL_DestroyRenderer(ren);
