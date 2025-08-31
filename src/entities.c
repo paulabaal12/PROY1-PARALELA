@@ -1,3 +1,63 @@
+// --- FIGURAS Y EFECTOS ---
+// Cada figura tiene su propia función para facilitar la extensión y la paralelización.
+// Puedes agregar más figuras siguiendo este patrón.
+
+// Corazón
+void figure_heart(float *x, float *y, float cx, float cy, float theta, float scale) {
+    float R = scale;
+    float t = theta;
+    *x = cx + R * 16 * powf(sinf(t), 3) / 17.0f;
+    *y = cy - R * (13 * cosf(t) - 5 * cosf(2*t) - 2 * cosf(3*t) - cosf(4*t)) / 17.0f;
+}
+
+// Flor animada
+void figure_flower(float *x, float *y, float cx, float cy, float theta, float scale, float t_seconds) {
+    float R = scale;
+    float petals = 6.0f + 2.0f * sinf(t_seconds*0.5f);
+    float r = R * (0.7f + 0.3f * sinf(petals * theta + t_seconds));
+    *x = cx + r * cosf(theta);
+    *y = cy + r * sinf(theta);
+}
+
+// Lemniscata (infinito)
+void figure_lemniscate(float *x, float *y, float cx, float cy, float theta, float scale, float anim) {
+    float a = scale;
+    float theta_anim = theta * anim;
+    float denom = 1.0f + sinf(theta_anim) * sinf(theta_anim);
+    *x = cx + (a * cosf(theta_anim)) / denom;
+    *y = cy + (a * sinf(theta_anim) * cosf(theta_anim)) / denom;
+}
+
+// Espiral
+void figure_spiral(float *x, float *y, float cx, float cy, float theta, float scale, float t_seconds) {
+    float R = scale;
+    float r = R * (float)theta / (2.0f * 3.1415926f);
+    float angle = theta + t_seconds * 0.5f;
+    *x = cx + r * cosf(angle);
+    *y = cy + r * sinf(angle);
+}
+
+// Estrella pulsante
+void figure_star(float *x, float *y, float cx, float cy, float theta, float scale, float t_seconds) {
+    float R = scale;
+    int spikes = 5 + (int)(2.0f * (0.5f + 0.5f * sinf(t_seconds*0.6f)));
+    float star = 0.65f + 0.35f * cosf(spikes * theta + t_seconds*1.2f);
+    float r = R * star * (1.0f + 0.1f * sinf(t_seconds*2.0f));
+    *x = cx + r * cosf(theta);
+    *y = cy + r * sinf(theta);
+}
+
+// Onda senoidal
+void figure_wave(float *x, float *y, float cx, float cy, float theta, float scale, float t_seconds, int i, int N) {
+    float R = scale;
+    float x0 = cx + (theta - 3.1415926f) * R;
+    float y0 = cy + sinf(theta * 2 + t_seconds * 2.0f) * R * 0.4f;
+    *x = x0;
+    *y = y0;
+}
+
+// Puedes agregar más figuras aquí...
+
 #include "entities.h"
 #include <math.h>
 #include <stdlib.h>
@@ -36,7 +96,6 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
 
     float cx = w / 2.0f;
     float cy = h / 2.0f;
-    // Posición cuadrícula (pantalla llena)
     int cols = (int)sqrtf((float)N * w / h);
     int rows = (N + cols - 1) / cols;
     int col = i % cols;
@@ -45,6 +104,17 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
     float ygap = (float)h / (float)(rows+1);
     float grid_x = xgap * (col+1);
     float grid_y = ygap * (row+1);
+
+    int fig = 0, next_fig = 1;
+    float t_phase = 0.0f;
+    if (t_seconds >= 7.0f) {
+        fig = ((int)((t_seconds-7.0f) / 7.0f)) % n_figs;
+        next_fig = (fig + 1) % n_figs;
+        t_phase = fmodf((t_seconds-7.0f), 7.0f) / 7.0f;
+    }
+
+    // --- Lógica de transición y llamada a cada figura ---
+    // Aquí solo se muestra la estructura, la lógica de transición y efectos únicos se implementarán en la siguiente parte.
 
     if (t_seconds < 4.0f) {
         // Solo cuadrícula los primeros 2.5 segundos
