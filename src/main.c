@@ -1,3 +1,7 @@
+#include <omp.h>
+// Cambia este valor a 0 para medir la versión secuencial, 1 para la paralela
+#define USE_PARALLEL 1
+#include <omp.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdio.h>
@@ -92,9 +96,22 @@ int main(int argc, char **argv){
         t_seconds += dt;
 
 
-        for (int i=0; i<N; ++i) {
-            note_update_creative(&notes[i], i, N, t_seconds, WINDOW_W, WINDOW_H);
+        // Medición de tiempo para speedup
+        double t0 = omp_get_wtime();
+        if (USE_PARALLEL) {
+            // Paralelo con OpenMP
+            #pragma omp parallel for
+            for (int i=0; i<N; ++i) {
+                note_update_creative(&notes[i], i, N, t_seconds, WINDOW_W, WINDOW_H);
+            }
+        } else {
+            // Secuencial
+            for (int i=0; i<N; ++i) {
+                note_update_creative(&notes[i], i, N, t_seconds, WINDOW_W, WINDOW_H);
+            }
         }
+        double t1 = omp_get_wtime();
+        printf("[Speedup] Tiempo %s: %f segundos\n", USE_PARALLEL ? "paralelo" : "secuencial", t1-t0);
         // Render
     pastel_gradient(ren, WINDOW_W, WINDOW_H, t_seconds);
         for (int i=0;i<N;++i) note_render(ren, &notes[i]);

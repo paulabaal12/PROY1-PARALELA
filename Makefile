@@ -2,8 +2,8 @@
 APP := screensaver
 SRC := src/main.c src/entities.c
 INCLUDES := -Iinclude
-CFLAGS := -O2 -Wall -Wextra -std=c11 $(INCLUDES) `sdl2-config --cflags`
-LDFLAGS := `sdl2-config --libs` -lSDL2_ttf -lm
+CFLAGS := -O2 -Wall -Wextra -std=c11 -fopenmp $(INCLUDES) `sdl2-config --cflags`
+LDFLAGS := -fopenmp `sdl2-config --libs` -lSDL2_ttf -lm
 
 $(APP): $(SRC)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
