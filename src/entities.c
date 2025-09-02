@@ -26,13 +26,14 @@ void figure_lemniscate(float *x, float *y, float cx, float cy, float theta, floa
     *y = cy + (a * sinf(theta_anim) * cosf(theta_anim)) / denom;
 }
 
-// Espiral
+// Espiral arquimediana animada 
 void figure_spiral(float *x, float *y, float cx, float cy, float theta, float scale, float t_seconds) {
-    // Espiral que inicia en el centro y se expande hacia afuera
-    float vueltas = 2.5f + 1.5f * sinf(t_seconds * 0.2f); // número de vueltas animado
-    float t_norm = theta / (2.0f * 3.1415926f); // 0..1
-    float r = scale * t_norm * vueltas;
-    float angle = theta + t_seconds * 0.7f;
+    // Espiral de Arquímedes: r = a + b*theta
+    float vueltas = 5.0f + 2.5f * sinf(t_seconds * 0.3f);
+    float a = scale * 0.10f;
+    float b = scale * 0.38f / (vueltas * 2.0f * 3.1415926f); // ajusta para que quepa en pantalla
+    float angle = theta + t_seconds * 0.8f; // animación de rotación
+    float r = a + b * (vueltas * theta);
     *x = cx + r * cosf(angle);
     *y = cy + r * sinf(angle);
 }
@@ -57,7 +58,6 @@ void figure_wave(float *x, float *y, float cx, float cy, float theta, float scal
     (void)i; (void)N; // Mark unused
 }
 
-// Puedes agregar más figuras aquí...
 
 #include "entities.h"
 
@@ -142,7 +142,7 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
     float grid_x = xgap * (col+1);
     float grid_y = ygap * (row+1);
 
-    // Variables for figure selection and phase
+    // Variables para selección de figura y fase de transición
     int fig = 0, next_fig = 1;
     float t_phase = 0.0f;
     const int n_figs = 7;
@@ -156,11 +156,12 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
 
     // --- Fase inicial: cuadrícula y transición creativa al corazón ---
     if (t_seconds < 4.0f) {
+        // Cuadrícula inicial con efecto arcoíris
         n->x = grid_x;
         n->y = grid_y;
         n->radius = 10.0f + 2.0f * sinf(t_seconds + i*0.5f);
-        float hue = fmodf((t_seconds * 30.0f + i * 360.0f / N), 360.0f);
-        float s = 0.7f, v = 0.85f;
+        float hue = fmodf((t_seconds * 60.0f + i * 360.0f / N), 360.0f);
+        float s = 0.85f, v = 0.95f;
         float C = v * s, X = C * (1 - fabsf(fmodf(hue / 60.0f, 2.0f) - 1)), m = v - C;
         float rr = 0, gg = 0, bb = 0;
         if (hue < 60) { rr = C; gg = X; bb = 0; }
@@ -174,7 +175,7 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
         n->b = clampu8((int)((bb + m) * 255));
         return;
     } else if (t_seconds < 7.0f) {
-        // Transición cuadrícula -> dispersión -> puntos aleatorios -> corazón
+        // Transición cuadrícula -> dispersión -> puntos aleatorios -> corazón, todo con efecto arcoíris
         float t_local = t_seconds - 4.0f;
         float theta = 2 * 3.1415926f * (float)i / (float)N;
         float fx, fy, disp_x, disp_y, rand_x, rand_y;
@@ -202,6 +203,20 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
             n->y = (1.0f - interp) * rand_y + interp * fy;
         }
         n->radius = 9.0f + 3.0f * sinf(t_seconds + i*0.5f);
+        // Color arcoíris animado
+        float hue = fmodf((t_seconds * 60.0f + i * 360.0f / N), 360.0f);
+        float s = 0.85f, v = 0.95f;
+        float C = v * s, X = C * (1 - fabsf(fmodf(hue / 60.0f, 2.0f) - 1)), m = v - C;
+        float rr = 0, gg = 0, bb = 0;
+        if (hue < 60) { rr = C; gg = X; bb = 0; }
+        else if (hue < 120) { rr = X; gg = C; bb = 0; }
+        else if (hue < 180) { rr = 0; gg = C; bb = X; }
+        else if (hue < 240) { rr = 0; gg = X; bb = C; }
+        else if (hue < 300) { rr = X; gg = 0; bb = C; }
+        else { rr = C; gg = 0; bb = X; }
+        n->r = clampu8((int)((rr + m) * 255));
+        n->g = clampu8((int)((gg + m) * 255));
+        n->b = clampu8((int)((bb + m) * 255));
         return;
     }
 
@@ -304,9 +319,9 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
         default:
             n->radius = 9.0f + 3.0f * sinf(t_seconds + i*0.5f);
     }
- 
-    float hue = fmodf((t_seconds * 30.0f + i * 360.0f / N), 360.0f);
-    float s = 0.7f, v = 0.85f;
+    // Color arcoíris animado para todas las figuras
+    float hue = fmodf((t_seconds * 60.0f + i * 360.0f / N), 360.0f);
+    float s = 0.85f, v = 0.95f;
     float C = v * s, X = C * (1 - fabsf(fmodf(hue / 60.0f, 2.0f) - 1)), m = v - C;
     float rr = 0, gg = 0, bb = 0;
     if (hue < 60) { rr = C; gg = X; bb = 0; }
