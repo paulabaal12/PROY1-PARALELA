@@ -14,7 +14,6 @@
 #define WINDOW_H 600
 
 static void pastel_gradient(SDL_Renderer *ren, int w, int h, float t) {
-    (void)t;
     SDL_Color stops[5] = {
         {180, 220, 255, 255}, // celeste
         {220, 190, 255, 255}, // lila
@@ -23,13 +22,15 @@ static void pastel_gradient(SDL_Renderer *ren, int w, int h, float t) {
         {200, 255, 220, 255}  // menta
     };
     int nstops = 5;
+    float anim = t * 0.12f; // desplazamiento lineal suave
     for (int y=0; y<h; ++y) {
         float p = (float)y/(float)(h-1);
-        float pos = p * (nstops-1);
+        float pos = fmodf(p * nstops + anim, nstops);
+        if (pos < 0) pos += nstops;
         int idx = (int)pos;
         float frac = pos - idx;
-        SDL_Color c1 = stops[idx];
-        SDL_Color c2 = stops[(idx+1<nstops)?idx+1:idx];
+        SDL_Color c1 = stops[idx % nstops];
+        SDL_Color c2 = stops[(idx+1) % nstops];
         Uint8 r = (Uint8)((1-frac)*c1.r + frac*c2.r);
         Uint8 g = (Uint8)((1-frac)*c1.g + frac*c2.g);
         Uint8 b = (Uint8)((1-frac)*c1.b + frac*c2.b);
