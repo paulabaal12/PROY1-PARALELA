@@ -1,0 +1,6 @@
+Modo de ejecución: Secuencial
+
+=== Estadísticas Finales (Secuencial) ===
+Tiempo promedio secuencial: 0.004831 segundos
+FPS promedio: 20.10
+Mediciones secuenciales: 64

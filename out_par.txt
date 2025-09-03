@@ -1,0 +1,6 @@
+Modo de ejecución: Paralelo
+
+=== Estadísticas Finales (Paralelo) ===
+Tiempo promedio paralelo: 0.002304 segundos
+FPS promedio: 20.09
+Mediciones paralelas: 64

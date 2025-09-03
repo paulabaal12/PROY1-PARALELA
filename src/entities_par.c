@@ -1,6 +1,17 @@
 #include <math.h>
 #include <stdlib.h>
+#include "entities.h"
 
+static float frand01(void) { return (float)rand() / (float)RAND_MAX; }
+static Uint8 clampu8(int v){ if(v<0) return 0; if(v>255) return 255; return (Uint8)v; }
+
+// Escala mayor simple (C4..C5)
+static const float SCALE_HZ[] = {
+    261.63f, 293.66f, 329.63f, 349.23f,
+    392.00f, 440.00f, 493.88f, 523.25f
+};
+
+// ==================== FIGURAS PER-NOTA ====================
 void figure_heart(float *x, float *y, float cx, float cy, float theta, float scale) {
     float R = scale;
     float t = theta;
@@ -8,7 +19,6 @@ void figure_heart(float *x, float *y, float cx, float cy, float theta, float sca
     *y = cy - R * (13 * cosf(t) - 5 * cosf(2*t) - 2 * cosf(3*t) - cosf(4*t)) / 17.0f;
 }
 
-// Flor animada
 void figure_flower(float *x, float *y, float cx, float cy, float theta, float scale, float t_seconds) {
     float R = scale;
     float petals = 6.0f + 2.0f * sinf(t_seconds*0.5f);
@@ -17,7 +27,6 @@ void figure_flower(float *x, float *y, float cx, float cy, float theta, float sc
     *y = cy + r * sinf(theta);
 }
 
-// Lemniscata (infinito)
 void figure_lemniscate(float *x, float *y, float cx, float cy, float theta, float scale, float anim) {
     float a = scale;
     float theta_anim = theta * anim;
@@ -26,19 +35,16 @@ void figure_lemniscate(float *x, float *y, float cx, float cy, float theta, floa
     *y = cy + (a * sinf(theta_anim) * cosf(theta_anim)) / denom;
 }
 
-// Espiral arquimediana animada 
 void figure_spiral(float *x, float *y, float cx, float cy, float theta, float scale, float t_seconds) {
-    // Espiral de Arquímedes: r = a + b*theta
     float vueltas = 5.0f + 2.5f * sinf(t_seconds * 0.3f);
     float a = scale * 0.10f;
-    float b = scale * 0.38f / (vueltas * 2.0f * 3.1415926f); // ajusta para que quepa en pantalla
-    float angle = theta + t_seconds * 0.8f; // animación de rotación
+    float b = scale * 0.38f / (vueltas * 2.0f * 3.1415926f);
+    float angle = theta + t_seconds * 0.8f;
     float r = a + b * (vueltas * theta);
     *x = cx + r * cosf(angle);
     *y = cy + r * sinf(angle);
 }
 
-// Estrella pulsante
 void figure_star(float *x, float *y, float cx, float cy, float theta, float scale, float t_seconds) {
     float R = scale;
     int spikes = 5 + (int)(2.0f * (0.5f + 0.5f * sinf(t_seconds*0.6f)));
@@ -48,27 +54,57 @@ void figure_star(float *x, float *y, float cx, float cy, float theta, float scal
     *y = cy + r * sinf(theta);
 }
 
-// Onda senoidal
 void figure_wave(float *x, float *y, float cx, float cy, float theta, float scale, float t_seconds, int i, int N) {
     float R = scale;
     float x0 = cx + (theta - 3.1415926f) * R;
     float y0 = cy + sinf(theta * 2 + t_seconds * 2.0f) * R * 0.4f;
     *x = x0;
     *y = y0;
-    (void)i; (void)N; // Mark unused
+    (void)i; (void)N;
 }
 
+// ==================== FIGURA GLOBAL ====================
+void figure_bubbles(Note *notes, int N, int w, int h) {
+    float radius = 15.0f;
+    float repel_force = 0.05f;
 
-#include "entities.h"
+    float *dx = calloc(N, sizeof(float));
+    float *dy = calloc(N, sizeof(float));
 
-static float frand01(void) { return (float)rand() / (float)RAND_MAX; }
+    // Fase 1: calcular fuerzas
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            if (i == j) continue;
+            float dx_ij = notes[i].x - notes[j].x;
+            float dy_ij = notes[i].y - notes[j].y;
+            float dist2 = dx_ij*dx_ij + dy_ij*dy_ij;
+            if (dist2 < 1e-5f) continue;
 
-// Escala mayor simple (C4..C5)
-static const float SCALE_HZ[] = {
-    261.63f, 293.66f, 329.63f, 349.23f, 392.00f, 440.00f, 493.88f, 523.25f
-};
+            float dist = sqrtf(dist2);
+            if (dist < 2*radius) {
+                float overlap = 2*radius - dist;
+                float force = repel_force * overlap / dist;
+                dx[i] += force * dx_ij;
+                dy[i] += force * dy_ij;
+            }
+        }
+    }
 
-static Uint8 clampu8(int v){ if(v<0) return 0; if(v>255) return 255; return (Uint8)v; }
+    // Fase 2: aplicar correcciones
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < N; i++) {
+        notes[i].x += dx[i];
+        notes[i].y += dy[i];
+        if (notes[i].x < 0) notes[i].x = 0;
+        if (notes[i].x > w) notes[i].x = w;
+        if (notes[i].y < 0) notes[i].y = 0;
+        if (notes[i].y > h) notes[i].y = h;
+    }
+
+    free(dx);
+    free(dy);
+}
 
 void notes_init(Note *notes, int N, int w, int h, unsigned int seed) {
     (void)w; (void)h;
@@ -76,10 +112,9 @@ void notes_init(Note *notes, int N, int w, int h, unsigned int seed) {
     for (int i=0;i<N;++i){
         Note *n = &notes[i];
         n->radius = 10 + 10*frand01();
-        n->x = 0; // se calculará dinámicamente
+        n->x = 0;
         n->y = 0;
-        n->vx = 0;
-        n->vy = 0;
+        n->vx = n->vy = 0;
         n->r = clampu8(80 + (int)(175*frand01()));
         n->g = clampu8(80 + (int)(175*frand01()));
         n->b = clampu8(80 + (int)(175*frand01()));
@@ -88,45 +123,6 @@ void notes_init(Note *notes, int N, int w, int h, unsigned int seed) {
         n->pitch_hz = SCALE_HZ[rand()% (int)(sizeof(SCALE_HZ)/sizeof(SCALE_HZ[0]))];
     }
 }
-    // Burbujas físicas (colisiones y rebotes)
-    // Para la versión paralela, el cálculo de posiciones y colisiones puede hacerse con OpenMP
-    void figure_bubbles(Note *notes, int N, int i, int w, int h, float t_seconds) {
-        Note *n = &notes[i];
-        // Inicialización de velocidad y posición si es la primera vez
-        if (n->vx == 0 && n->vy == 0) {
-            n->vx = 80.0f * (frand01() - 0.5f);
-            n->vy = 80.0f * (frand01() - 0.5f);
-            n->x = w * frand01();
-            n->y = h * frand01();
-        }
-        // Movimiento
-        n->x += n->vx * 0.016f; // Suponiendo ~60 FPS
-        n->y += n->vy * 0.016f;
-        // Rebote con bordes
-        if (n->x < n->radius) { n->x = n->radius; n->vx *= -1; }
-        if (n->x > w-n->radius) { n->x = w-n->radius; n->vx *= -1; }
-        if (n->y < n->radius) { n->y = n->radius; n->vy *= -1; }
-        if (n->y > h-n->radius) { n->y = h-n->radius; n->vy *= -1; }
-        // Colisiones simples entre burbujas (solo repulsión)
-        for (int j=0; j<N; ++j) {
-            if (i==j) continue;
-            Note *m = &notes[j];
-            float dx = n->x - m->x;
-            float dy = n->y - m->y;
-            float dist = sqrtf(dx*dx + dy*dy);
-            float min_dist = n->radius + m->radius;
-            if (dist < min_dist && dist > 1e-2f) {
-                float overlap = 0.5f * (min_dist - dist);
-                n->x += (dx/dist) * overlap;
-                n->y += (dy/dist) * overlap;
-                n->vx += (dx/dist) * 8.0f;
-                n->vy += (dy/dist) * 8.0f;
-            }
-        }
-        // Efecto de tamaño pulsante
-        n->radius = 12.0f + 4.0f * sinf(t_seconds*2.0f + i);
-    }
-
 
 // t_seconds: tiempo global, w/h: tamaño ventana, i: índice de la nota, N: total
 void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) {
@@ -246,9 +242,6 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
         case 5: // Onda senoidal
             figure_wave(&fx, &fy, cx, cy, theta, scale * 1.5f, t_seconds, i, N);
             break;
-        case 6: // Burbujas físicas
-            figure_bubbles((Note*)n - i, N, i, w, h, t_seconds);
-            return;
         default:
             fx = grid_x;
             fy = grid_y;
@@ -347,20 +340,19 @@ static void fill_circle(SDL_Renderer *ren, int cx, int cy, int r){
 
 void note_render(SDL_Renderer *ren, const Note *n){
     SDL_SetRenderDrawColor(ren, n->r, n->g, n->b, 255);
-    // cabeza
     fill_circle(ren, (int)n->x, (int)n->y, (int)n->radius);
 
-    // plica (hacia arriba)
     int stem_h = (int)(n->radius*3.2f);
     int stem_w = (int)fmaxf(2.0f, n->radius*0.3f);
     SDL_Rect stem = { (int)(n->x + n->radius*0.8f), (int)(n->y - stem_h), stem_w, stem_h };
     SDL_RenderFillRect(ren, &stem);
 
-    // banderas (según tipo)
     int flags = (n->kind==NOTE_EIGHTH)?1 : (n->kind==NOTE_SIXTEENTH?2:0);
     for (int i=0;i<flags;++i){
         int y0 = stem.y + 6 + i*10;
-        SDL_RenderDrawLine(ren, stem.x + stem.w, y0, stem.x + stem.w + (int)(n->radius*1.4f), y0 + 6);
-        SDL_RenderDrawLine(ren, stem.x + stem.w, y0+1, stem.x + stem.w + (int)(n->radius*1.4f), y0 + 7);
+        SDL_RenderDrawLine(ren, stem.x + stem.w, y0,
+                                stem.x + stem.w + (int)(n->radius*1.4f), y0 + 6);
+        SDL_RenderDrawLine(ren, stem.x + stem.w, y0+1,
+                                stem.x + stem.w + (int)(n->radius*1.4f), y0 + 7);
     }
 }
