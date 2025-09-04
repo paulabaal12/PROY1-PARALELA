@@ -231,7 +231,7 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
         case 0: // Corazón
             figure_heart(&fx, &fy, cx, cy, theta, scale);
             break;
-        case 1: // Flor animada
+        case 6: // Flor animada
             figure_flower(&fx, &fy, cx, cy, theta, scale * 1.3f, t_seconds);
             break;
         case 2: // Lemniscata
@@ -246,7 +246,7 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
         case 5: // Onda senoidal
             figure_wave(&fx, &fy, cx, cy, theta, scale * 1.5f, t_seconds, i, N);
             break;
-        case 6: // Burbujas físicas
+        case 1: // Burbujas físicas
             figure_bubbles((Note*)n - i, N, i, w, h, t_seconds);
             return;
         default:
@@ -257,7 +257,7 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
         case 0:
             figure_heart(&fx_next, &fy_next, cx, cy, theta, scale);
             break;
-        case 1:
+        case 6:
             figure_flower(&fx_next, &fy_next, cx, cy, theta, scale * 1.3f, t_seconds+7.0f);
             break;
         case 2:
@@ -310,7 +310,7 @@ void note_update_creative(Note *n, int i, int N, float t_seconds, int w, int h) 
         case 4: // Estrella pulsante
             n->radius = 11.0f + 5.0f * sinf(t_seconds*2.0f + i);
             break;
-        case 1: // Flor animada
+        case 6: // Flor animada
             n->radius = 10.0f + 4.0f * sinf(t_seconds + i*0.2f);
             break;
         case 5: // Onda

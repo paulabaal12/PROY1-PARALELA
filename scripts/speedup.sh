@@ -1,6 +1,6 @@
 #!/bin/bash
-N=13000
-TIMEOUT=30
+N=5000
+TIMEOUT=10
 
 # Ejecutar versiones y guardar salida
 echo "Ejecutando secuencial..."

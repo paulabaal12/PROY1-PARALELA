@@ -112,9 +112,20 @@ int main(int argc, char **argv){
 
         // --- Modo Paralelo ---
         double t0 = omp_get_wtime();
-        #pragma omp parallel for
-        for (int i=0; i<N; ++i) {
-            note_update_creative(&notes[i], i, N, t_seconds, WINDOW_W, WINDOW_H);
+        int fig = 0;
+        const int n_figs = 7;
+        float fig_duration = 7.0f;
+        if (t_seconds >= 7.0f) {
+            int phase_idx = (int)((t_seconds - 7.0f) / fig_duration);
+            fig = phase_idx % n_figs;
+        }
+        if (fig == 1) {
+            figure_bubbles(notes, N, WINDOW_W, WINDOW_H); // ya paralelizado dentro
+        } else {
+            #pragma omp parallel for
+            for (int i=0; i<N; ++i) {
+                note_update_creative(&notes[i], i, N, t_seconds, WINDOW_W, WINDOW_H);
+            }
         }
         double t1 = omp_get_wtime();
         double elapsed = t1-t0;
