@@ -1,7 +1,7 @@
 # Informe de Proyecto: Simulación de Animación de Screensaver con Notas Musicales
 - Mónica Salvatierra 22249
+- Paula Barillas 22764
 - Derek Arreaga 22537
-- Paula Barillas 22
 
 ---
 ## Descripción del Proyecto
