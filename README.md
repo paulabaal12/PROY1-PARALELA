@@ -3,6 +3,9 @@
 - Paula Barillas 22764
 - Derek Arreaga 22537
 
+Video de explicación: https://drive.google.com/drive/folders/17RYJQp8__jS8OpqKrylXNZE1u7_NWwie?usp=sharing
+Link del repositorio: https://github.com/paulabaal12/PROY1-PARALELA
+
 ---
 ## Descripción del Proyecto
 Este proyecto implementa una simulación de animación inspirada en un screensaver, donde notas musicales se representan como círculos coloreados con plicas y banderas (según su tipo: media, negra, corchea o semicorchea). Estas notas se organizan en los siguientes patrones geométricos:
